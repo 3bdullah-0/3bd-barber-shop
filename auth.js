@@ -1,50 +1,61 @@
-const auth = {
-  config: { adminUser: "admin", adminPass: "admin123" },
-  key: "3bd_auth",
+/**
+ * Authentication Module
+ * Handles login, logout, and session state.
+ * Uses LocalStorage to persist login state.
+ */
+window.auth = {
+    config: {
+        adminUser: 'admin',
+        adminPass: 'admin123'
+    },
 
-  init() {
-    const form = document.getElementById("login-form");
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      this.login();
-    });
-    this.checkAuth();
-  },
+    init() {
+        this.checkAuth();
 
-  checkAuth() {
-    const ok = localStorage.getItem(this.key) === "true";
-    document.getElementById("auth-screen").style.display = ok ? "none" : "flex";
-    document.getElementById("app").style.display = ok ? "block" : "none";
-    if (ok) {
-      const el = document.getElementById("current-date");
-      if (el) el.textContent = new Date().toLocaleString();
+        // Bind login form
+        const form = document.getElementById('login-form');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.login();
+            });
+        }
+    },
+
+    checkAuth() {
+        const isLoggedIn = localStorage.getItem('3bd_auth_user');
+        const app = document.getElementById('app');
+        const authScreen = document.getElementById('auth-screen');
+
+        if (isLoggedIn) {
+            authScreen.style.display = 'none';
+            app.style.display = 'flex';
+        } else {
+            authScreen.style.display = 'flex';
+            app.style.display = 'none';
+        }
+    },
+
+    login() {
+        const userIn = document.getElementById('username').value;
+        const passIn = document.getElementById('password').value;
+        const errorEl = document.getElementById('auth-error');
+
+        if (userIn === this.config.adminUser && passIn === this.config.adminPass) {
+            localStorage.setItem('3bd_auth_user', userIn);
+            errorEl.style.display = 'none';
+            this.checkAuth();
+        } else {
+            errorEl.textContent = 'Invalid username or password';
+            errorEl.style.display = 'block';
+        }
+    },
+
+    logout() {
+        localStorage.removeItem('3bd_auth_user');
+        this.checkAuth();
+        // Clear inputs
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
     }
-  },
-
-  login() {
-    const u = document.getElementById("username").value.trim();
-    const p = document.getElementById("password").value.trim();
-    const err = document.getElementById("auth-error");
-
-    if (u === this.config.adminUser && p === this.config.adminPass) {
-      localStorage.setItem(this.key, "true");
-      err.style.display = "none";
-      this.checkAuth();
-      // load default section data
-      bookings.load();
-      inventory.load();
-      accounting.load();
-      bot.loadSettings();
-      bot.loadLogs();
-      cameras.load();
-    } else {
-      err.textContent = "❌ Wrong username or password";
-      err.style.display = "block";
-    }
-  },
-
-  logout() {
-    localStorage.removeItem(this.key);
-    location.reload();
-  }
 };
