@@ -1,96 +1,44 @@
-/**
- * Bot Module
- * Manages Instagram Bot settings and logs.
- */
 const bot = {
-    init() {
-        console.log('Bot module init');
-        this.loadSettings();
+  settings: {},
 
-        // Settings Form
-        const form = document.getElementById('bot-settings-form');
-        if (form) {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.saveSettings();
-            });
-        }
-
-        // Auto-refresh logs every 10s if on bot screen
-        setInterval(() => {
-            if (app.state.currentView === 'bot') {
-                this.loadLogs();
-            }
-        }, 10000);
-    },
-
-    async loadLogs() {
-        try {
-            const res = await fetch('/api/bot/logs');
-            const logs = await res.json();
-            this.renderLogs(logs);
-        } catch (e) {
-            console.error('Failed to fetch logs', e);
-        }
-    },
-
-    renderLogs(logs) {
-        const tbody = document.getElementById('bot-logs-body');
-        if (!tbody) return;
-        tbody.innerHTML = '';
-
-        logs.forEach(log => {
-            let color = '#fff';
-            if (log.type === 'error') color = 'var(--danger)';
-            if (log.type === 'success') color = 'var(--success)';
-            if (log.type === 'incoming') color = '#3b82f6'; // Blue
-            if (log.type === 'outgoing') color = '#a855f7'; // Purple
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="color: var(--text-secondary); font-size: 0.8rem;">${new Date(log.timestamp).toLocaleTimeString()}</td>
-                <td style="color: ${color}; font-size: 0.9rem;">${log.message}</td>
-            `;
-            tbody.appendChild(tr);
-        });
-
-        if (logs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--text-secondary);">No active logs</td></tr>';
-        }
-    },
-
-    async loadSettings() {
-        try {
-            const res = await fetch('/api/bot/settings');
-            const settings = await res.json();
-            if (settings.accessToken) {
-                document.getElementById('bot-token').value = settings.accessToken;
-                document.getElementById('bot-connection-status').textContent = 'Token Configured';
-                document.getElementById('bot-connection-status').style.color = 'var(--success)';
-            }
-        } catch (e) {
-            console.error('Failed to load settings', e);
-        }
-    },
-
-    async saveSettings() {
-        const token = document.getElementById('bot-token').value;
-        try {
-            await fetch('/api/bot/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ accessToken: token })
-            });
-            alert('Settings Saved! The bot will now use this token.');
-            this.loadLogs(); // Refresh
-        } catch (e) {
-            alert('Error saving settings.');
-        }
+  async loadSettings() {
+    try {
+      this.settings = await api.get("/api/bot/settings");
+    } catch {
+      this.settings = {};
     }
+    const input = document.getElementById("bot-token");
+    if (input) input.value = this.settings.accessToken ? this.settings.accessToken : "";
+  },
+
+  async saveSettings() {
+    const token = document.getElementById("bot-token").value.trim();
+    this.settings = { ...this.settings, accessToken: token };
+    await api.post("/api/bot/settings", this.settings);
+    document.getElementById("bot-connection-status").textContent = token ? "Token saved ✅" : "Ready for Webhooks";
+  },
+
+  async loadLogs() {
+    let logs = [];
+    try {
+      logs = await api.get("/api/bot/logs");
+    } catch {
+      logs = [];
+    }
+    const tbody = document.getElementById("bot-logs-body");
+    tbody.innerHTML = logs.map(l => `
+      <tr>
+        <td>${escapeHtml(new Date(l.timestamp).toLocaleString())}</td>
+        <td>${escapeHtml(l.message || "")}</td>
+      </tr>
+    `).join("") || `<tr><td colspan="2" style="opacity:.7;">No logs yet.</td></tr>`;
+  }
 };
 
-// Init after DOM load
-document.addEventListener('DOMContentLoaded', () => {
-    // Slight delay to ensure elements exist
-    setTimeout(() => bot.init(), 100);
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("bot-settings-form");
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    await bot.saveSettings();
+  });
 });
